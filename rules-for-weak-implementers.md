@@ -83,10 +83,11 @@ Requirements, all of them:
 6. **Short output.** The implementer reads it into its context: one line per check
    plus only the failing detail (for pytest, `-q --tb=line --show-capture=no`). A red
    run that prints a traceback per test can fill a 32K window on its own.
-7. **Read-only to the implementer.** The plan tells the implementer: never edit the
-   check script, the acceptance tests, the test-runner config, or anything the check
-   reads. If a check looks wrong or impossible to satisfy, stop and report the check
-   name, its output, and why. Do not work around it.
+7. **Read-only to the implementer.** The plan lists every file the implementer may
+   create or change, and tells it: never edit or add anything else, above all the
+   check script, the acceptance tests, the test-runner config, or a `conftest.py`.
+   If a check looks wrong or impossible to satisfy, stop and report the check name,
+   its output, and why. Do not work around it.
 
 The implementer reports each round with the raw output of the no-argument run, in
 its report message, never in the plan file. That output is progress, not the
@@ -103,12 +104,15 @@ Shape:
 # A task id (T1..Tn) narrows the run to that task: a partial run, never "done".
 set -uo pipefail
 cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)" || exit 2
+unset PYTEST_ADDOPTS PYTEST_PLUGINS
 only=${1:-}
-fail=0
+fail=0 ran=0
 check() {
   local task=$1 name=$2; shift 2
   [ -n "$only" ] && [ "$only" != "$task" ] && return 0
-  echo "== $task $name"; "$@" || { echo "FAIL: $task $name"; fail=1; }
+  ran=$((ran + 1)); echo "== $task $name"
+  [ $# -gt 0 ] || { echo "FAIL: $task $name: no command"; fail=1; return 0; }
+  "$@" || { echo "FAIL: $task $name"; fail=1; }
 }
 # expect_exit CODE TEXT CMD...: exactly exit CODE, with TEXT in stderr
 expect_exit() {
@@ -116,22 +120,33 @@ expect_exit() {
   err=$("$@" 2>&1 >/dev/null); got=$?
   [ "$got" -eq "$want" ] && [[ $err == *"$text"* ]] || { echo "  exit $got: ${err:0:200}"; return 1; }
 }
+# all_pass ARGS...: pytest passes and nothing was skipped, deselected or xfailed
+all_pass() {
+  local out rc; out=$(python3 -m pytest -q --tb=line --show-capture=no --confcutdir=. "$@" 2>&1); rc=$?
+  printf '%s\n' "$out"
+  [ "$rc" -eq 0 ] && ! grep -qE '[0-9]+ (skipped|deselected|xfailed|xpassed)' <<<"$out"
+}
 
-check T1 "window parser unit tests"      python3 -m pytest -q --tb=line --show-capture=no --confcutdir=. tests/test_window.py
+check T1 "window parser unit tests"      all_pass tests/acceptance/test_window.py
 check T2 "CLI rejects a bad date range"  expect_exit 2 "invalid date" ./mytool --from 2026-13-01 data.csv
 
+[ "$ran" -gt 0 ] || { echo "FAIL: no check matches '$only'"; exit 2; }
 [ -n "$only" ] && echo "PARTIAL RUN ($only only): not the definition of done"
 exit $fail
 ```
 
-Verified: every check runs even after one fails, and the failures are named. T2 is
-red when the tool is missing and when it rejects `--from` as an unknown option, and
-green only for exit 2 with the message. `T1` alone prints the partial-run line.
+Verified under bash 3.2 and 5: every check runs even after one fails, and the
+failures are named. T2 is red when the tool is missing and when it rejects `--from`
+as an unknown option, and green only for exit 2 with the message. T1 is red when a
+hook skips the tests. A check with no command fails, an unknown task id fails, and
+`T1` alone prints the partial-run line.
 
 - `set -uo pipefail` without `-e`: every check runs, so one round shows every failure.
 - Assert the exact exit code and the message, never a bare negation: `! ./mytool
   --from bad` is green when the tool is missing, crashes, or rejects the flag
   because the feature does not exist yet.
+- A skipped test is not a passing one: a `conftest.py` hook can mark every test
+  skipped and pytest still exits 0.
 - Never pipe a check call or a command inside one. `check ... | tail` runs `check`
   in a subshell and loses `fail=1`, and a pipe inside `bash -c` does not inherit
   `pipefail`. Shorten output with the tool's own flags instead.
@@ -178,7 +193,11 @@ a diff against it and the spec-drift defect class, code that is clean, correct, 
 implements something other than what was agreed, becomes invisible.
 
 Pin after the user approves the plan in writing-plans' review step. If the review
-changes the plan, commit the change and pin again. In whichever repo holds the plan:
+changes the plan, commit the change and pin again. `code_baseline` marks the last
+commit before implementation: it moves with a re-pin only while no implementation
+commit exists, and never after. A later re-pin, such as a check correction, updates
+`spec_pinned_at` and the handoff record only, so the review diff still starts
+before the first implementation commit. In whichever repo holds the plan:
 
 1. Set `status: approved` and `approved:` in the frontmatter, and commit the plan
    with its check script, acceptance tests and red output.
@@ -191,10 +210,17 @@ changes the plan, commit the change and pin again. In whichever repo holds the p
    - **Plan in a separate repo:** the code repo's HEAD before any implementation
      commit.
 4. Write the handoff record, outside the implementer's reach (the ticket, or the
-   message that hands the plan over): both SHAs, the check command, the read-only
-   rule from Rule 2.7, and, for whoever drives the implementer, a fresh session per
-   subtask (Rule 4). The frontmatter copy is inside the implementer's reach: a model
-   that "clarifies" the plan can just as helpfully "update" `spec_pinned_at` to match.
+   message that hands the plan over): both SHAs, `checks_at` (below), the check
+   command, the file list and read-only rule from Rule 2.7, and, for whoever drives
+   the implementer, a fresh session per subtask (Rule 4). The frontmatter copy is
+   inside the implementer's reach: a model that "clarifies" the plan can just as
+   helpfully "update" `spec_pinned_at` to match.
+
+`checks_at` is the commit in the code repo that holds the approved check script and
+acceptance tests: `spec_pinned_at` when plan and code share a repo; otherwise the
+code-repo commit where you added them, before implementation. A check correction
+later is a new planner commit, and the handoff record names it as the new
+`checks_at`.
 
 If the plan points at a separate spec file in the same repo, the pin covers it too.
 
@@ -209,18 +235,24 @@ not distinguishable from the drift.
 
 ## Review: someone other than the implementer declares done
 
-With the SHAs from the handoff record, never from the working copy:
+With the SHAs from the handoff record, never from the working copy, in the code
+repo:
 
-1. `git diff --exit-code <spec_pinned_at> HEAD -- <check script> <acceptance tests>
-   <test-runner config>` prints nothing. Any change there voids the result: the
-   implementer edited what defines done.
-2. In a fresh clone of the implementer's HEAD, not its working tree, run the check
-   with no arguments. Exit 0 is done. Anything else is not done, whatever the
-   implementer reported. The fresh clone also catches work that exists only
-   uncommitted on the implementer's machine.
-3. Read the spec with `git -C <plan repo> show <spec_pinned_at>:<path/to/plan.md>`
+1. **Integrity.** `git diff --exit-code <checks_at> HEAD -- <check script>
+   <acceptance tests> <test-runner config>` prints nothing. Any change there voids
+   the result: the implementer edited what defines done.
+2. **Scope.** `git diff --name-only <code_baseline> HEAD` lists only the files the
+   plan lets the implementer change, the plan itself, and the files in step 1.
+   Anything else added or changed voids the result, whatever it is: a
+   `conftest.py`, a runner config, a `sitecustomize.py` or `.pth` file can change
+   what the check executes without touching the check.
+3. **The run.** In a fresh clone of the implementer's HEAD, not its working tree,
+   run the check with no arguments. Exit 0 is done. Anything else is not done,
+   whatever the implementer reported. The fresh clone also catches work that
+   exists only uncommitted on the implementer's machine.
+4. Read the spec with `git -C <plan repo> show <spec_pinned_at>:<path/to/plan.md>`
    (and the spec file, if there is one), never the working copy.
-4. Review `git diff <code_baseline>..HEAD`: the implementation, plus any edit to the
+5. Review `git diff <code_baseline>..HEAD`: the implementation, plus any edit to the
    plan made after approval, which is exactly the drift to look for. Then walk the
    reviewer checklist.
 
@@ -271,8 +303,11 @@ check: scripts/check-<slug>.sh                            # no-argument exit 0 m
 - A check that needs a manual setup step on a clean checkout.
 - Leaving the check, the acceptance tests or the test config editable by the
   implementer, or giving it no way to report a check it cannot satisfy.
+- Counting skipped tests as passing, or a check call with no command.
+- Moving `code_baseline` after implementation started, which hides the work
+  before it from the review diff.
 - Accepting the implementer's pasted run as the verdict instead of running the
-  pinned check yourself in a fresh clone.
+  pinned check yourself in a fresh clone, after the integrity and scope diffs.
 - Reviewing against the working copy of the spec, or taking the pin from it.
 - Sizing subtasks by token count instead of the coherence limit.
 - Writing the body on the expensive model because the contract felt
@@ -289,7 +324,7 @@ Before handing the plan over:
 - [ ] Every new-behaviour check fails in that red run for its own reason; no negated or piped checks.
 - [ ] Every acceptance item maps to a separately failing named check; unscriptable constraints are on the reviewer checklist.
 - [ ] Check output is one line per check plus failing detail.
-- [ ] The plan tells the implementer what is read-only and to stop and report a check it cannot satisfy.
+- [ ] The plan lists every file the implementer may change, says everything else is read-only, and says to stop and report a check it cannot satisfy.
 - [ ] The plan was pinned after the user approved it; `git show <spec_pinned_at>:<path>` returns the plan body.
-- [ ] The handoff record carries both SHAs, the check command, and the fresh-session instruction.
+- [ ] The handoff record carries both SHAs, `checks_at`, the check command, the file list, and the fresh-session instruction.
 - [ ] Each subtask touches one production file plus its test, or cites a measured `max_files`.

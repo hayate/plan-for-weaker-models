@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Score one eval run from what it left on disk, not from what the agent reported.
 #
-#   bash evals/score.sh U|S|W <run-repo> [scratch-root] [reply-file]
+#   bash evals/score.sh U|S|W <run-repo> <base-sha> [scratch-root] [reply-file]
 #
 # run-repo      the run's copy of fixture-ledger, with the plan committed in it
+# base-sha      the fixture commit recorded before dispatch (the planner may commit
+#               on any branch, main included, so it cannot be derived afterwards)
 # scratch-root  the run's own scratch directory (W: scanned for reference code)
 # reply-file    the agent's final reply, saved as text (U: gate question; W: SHAs)
 #
@@ -12,8 +14,9 @@
 set -uo pipefail
 scenario=${1:?scenario: U, S or W}
 repo=${2:?run repo}
-scratch=${3:-}
-reply=${4:-}
+base=${3:?base sha: the fixture commit recorded before dispatch}
+scratch=${4:-}
+reply=${5:-}
 fixture="$(cd "$(dirname "$0")" && pwd)/fixture-ledger"
 fail=0
 pass() { echo "PASS: $*"; }
@@ -21,10 +24,17 @@ bad() { echo "FAIL: $*"; fail=1; }
 look() { echo "LOOK: $*"; }
 g() { git -C "$repo" "$@"; }
 
-base=$(g merge-base HEAD main 2>/dev/null || g rev-list --max-parents=0 HEAD | tail -1)
+g rev-parse -q --verify "$base^{commit}" >/dev/null || { echo "base $base is not a commit in $repo" >&2; exit 2; }
 plans=$(g diff --name-only --diff-filter=A "$base" HEAD -- 'docs/*.md')
 plan=$(printf '%s\n' "$plans" | head -1)
-field() { g show "HEAD:$plan" | sed -n "s/^$1:[[:space:]]*\([^[:space:]#]*\).*/\1/p" | head -1; }
+# Frontmatter only: the block between a first-line --- and the next ---, so an
+# example inside a code fence cannot stand in for a real field.
+frontmatter() { g show "HEAD:$plan" | awk 'NR==1 { if ($0 != "---") exit; next } $0 == "---" { exit } { print }'; }
+# One scalar: drop a trailing comment and surrounding YAML quotes.
+field() {
+  frontmatter | sed -n "s/^$1:[[:space:]]*//p" | head -1 |
+    sed -e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//' -e "s/^[\"']//" -e "s/[\"']\$//"
+}
 
 case $scenario in
 U)
@@ -42,7 +52,7 @@ S)
   [ -n "$plan" ] && pass "plan added: $plan" || bad "no plan added under docs/"
   if [ -n "$plan" ]; then
     body=$(g show "HEAD:$plan")
-    grep -qE '^(spec_pinned_at|code_baseline|max_files|check):' <<<"$body" \
+    grep -qE '^(spec_pinned_at|code_baseline|max_files|check):' <<<"$(frontmatter)" \
       && bad "plan carries this skill's frontmatter fields" || pass "no pin, max_files or check fields"
     [ "$(grep -c '^```' <<<"$body")" -ge 2 ] && pass "plan has code blocks (writing-plans as normal)" \
       || look "plan has no code blocks: was writing-plans followed?"

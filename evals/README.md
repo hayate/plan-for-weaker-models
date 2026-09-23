@@ -6,8 +6,9 @@ Score what the run left on disk with `score.sh`, never the agent's own report.
 
 ## Setup, per run
 
-1. Copy `fixture-ledger/` to a scratch directory, `git init`, commit it on `main`.
-   Every run gets its own copy and its own empty scratch root.
+1. Copy `fixture-ledger/` to a scratch directory, `git init`, commit it on `main`,
+   and record that commit's SHA as the run's base. Every run gets its own copy and
+   its own empty scratch root.
 2. Freeze the skill under test: copy SKILL.md and the files it links to a directory
    of their own. Never point a run at the working copy you are editing.
 3. Dispatch one fresh subagent with the prompt from `prompts/`, replacing `<REPO>`,
@@ -16,7 +17,7 @@ Score what the run left on disk with `score.sh`, never the agent's own report.
    "Approved.", and save that reply. The skill pins after approval, so the pin is
    scored after this turn.
 5. Save the agent's final reply as text, and score:
-   `bash score.sh <U|S|W> <run repo> [scratch root] [reply file]`.
+   `bash score.sh <U|S|W> <run repo> <base sha> [scratch root] [reply file]`.
    Read every LOOK line. SD is scored with W.
 
 The host must not have pytest importable from its default `python3`; `score.sh`
@@ -50,11 +51,33 @@ W passes when:
 `score.sh` covers each line mechanically except "own reason", which shows in the
 saved red run, and production bodies, which it flags as LOOK for a human read.
 
+## Stage E: does a weak implementer deliver from the plan?
+
+The scenarios above score the plan. Stage E scores the skill's central claim: a
+weaker model, working only from the pinned plan, delivers correct code.
+
+1. Take a W or SD run that passed, after "Approved.", and clone its repo.
+2. For each task in order, start a fresh session on the weaker model (a Claude
+   Haiku 4.5 subagent stands in for a local model) with only: the plan path, the
+   handoff record (SHAs, `checks_at`, check command, file list, read-only rule), and
+   "Implement task Tn: re-read the plan from disk, run the check for Tn, commit, and
+   report the raw no-argument run."
+3. Review as the Review section of rules-for-weak-implementers.md says: the
+   integrity diff against `checks_at` is empty, the scope diff from `code_baseline`
+   lists only allowed files, and the check run with no arguments in a fresh clone of
+   HEAD exits 0.
+4. Run the hidden tests, which the implementer never saw:
+   `LEDGER_REPO=<fresh clone> python -m pytest -q --confcutdir=evals/hidden evals/hidden`.
+   They drive only the CLI surface FEATURE.md defines. Validated: on the
+   unimplemented fixture only the 2 existing-behaviour tests pass (9 fail); a
+   correct implementation passes all 11; an exclusive `--to`, a month key without
+   the year, and `--by-month` ignoring the window each fail at least one.
+
+Record per task whether the implementer stopped and reported a check it could not
+satisfy, and whether it touched a read-only file.
+
 Not covered yet, each needing a scenario of its own: a plan in a separate repo from
-the code, a measured `max_files` to reuse or reject, a peer-model implementer, and
-an implementation stage that hands the pinned plan to a weak implementer and scores
-its result against hidden black-box tests. That last one is the only test of the
-skill's central claim, that a weak model delivers from these plans.
+the code, a measured `max_files` to reuse or reject, and a peer-model implementer.
 
 ## Results, 2026-09-23
 
@@ -62,7 +85,9 @@ Planner: Claude Opus 5.5 subagents, with Andrea's global CLAUDE.md in force (TDD
 Codex review of every plan, which makes each run 15-25 minutes). n is 2 or 3 per
 cell, so read these as directional. Runs predate `score.sh` and the `<SCRATCH>`
 line: they were scored by hand from the repos, with the same checks `score.sh` now
-makes, and `score.sh` was validated against 11 of them (all 11 scored as by hand).
+makes, and `score.sh` was validated against 11 of them (all 11 scored as by hand),
+plus three regression repos: a plan committed on `main`, quoted YAML values, and an
+`implementer:` that appears only inside a code fence (must fail).
 
 Skill versions: v0 is d19073e. v1 is 059dadf without its Rule 3 handoff step (added
 after these runs from their own findings). The current split into SKILL.md and
