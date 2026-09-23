@@ -1,0 +1,7 @@
+You are working in the git repo at <REPO> . Read README.md and FEATURE.md there. Andrea wants that feature built.
+
+You are writing the implementation plan. The implementation will be done by a different model: qwen3-coder-30b-a3b quantized to Q4_K_M, running locally with a 32K context window, driven through a coding CLI. You will not see its work until it reports done.
+
+Your job right now is the plan only - do not implement the feature. Put any scratch files or directories you make under <SCRATCH>, nowhere else. Save the plan in that repo (any path you like under docs/), plus any supporting files you think the plan needs, and commit them in that repo.
+
+If you would need to ask Andrea something before you could write a sensible plan, stop and reply with only the question(s). Otherwise, when done, reply with: the paths you created, and anything you would ask Andrea before handing off.
