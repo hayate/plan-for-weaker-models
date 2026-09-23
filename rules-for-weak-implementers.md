@@ -120,14 +120,26 @@ expect_exit() {
   err=$("$@" 2>&1 >/dev/null); got=$?
   [ "$got" -eq "$want" ] && [[ $err == *"$text"* ]] || { echo "  exit $got: ${err:0:200}"; return 1; }
 }
-# all_pass ARGS...: pytest passes and nothing was skipped, deselected or xfailed
+# all_pass N ARGS...: exactly N tests ran and passed; none skipped, failed or
+# errored. Counted from pytest's junit report: summary text can be quietened away.
 all_pass() {
-  local out rc; out=$(python3 -m pytest -q --tb=line --show-capture=no --confcutdir=. "$@" 2>&1); rc=$?
-  printf '%s\n' "$out"
-  [ "$rc" -eq 0 ] && ! grep -qE '[0-9]+ (skipped|deselected|xfailed|xpassed)' <<<"$out"
+  local want=$1 xml; shift; xml=$(mktemp)
+  python3 -m pytest -q --tb=line --show-capture=no --confcutdir=. --junitxml="$xml" "$@"
+  python3 - "$xml" "$want" <<'PY'
+import sys, xml.etree.ElementTree as ET
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+except Exception as e:
+    sys.exit(f"  no test report: {e}")
+s = root if root.tag == "testsuite" else root.find("testsuite")
+n = {k: int(s.get(k, 0)) for k in ("tests", "failures", "errors", "skipped")}
+passed = n["tests"] - n["failures"] - n["errors"] - n["skipped"]
+if passed != int(sys.argv[2]) or n["failures"] or n["errors"] or n["skipped"]:
+    sys.exit(f"  {passed} passed, expected {sys.argv[2]}: {n}")
+PY
 }
 
-check T1 "window parser unit tests"      all_pass tests/acceptance/test_window.py
+check T1 "window parser unit tests"      all_pass 6 tests/acceptance/test_window.py
 check T2 "CLI rejects a bad date range"  expect_exit 2 "invalid date" ./mytool --from 2026-13-01 data.csv
 
 [ "$ran" -gt 0 ] || { echo "FAIL: no check matches '$only'"; exit 2; }
@@ -138,15 +150,18 @@ exit $fail
 Verified under bash 3.2 and 5: every check runs even after one fails, and the
 failures are named. T2 is red when the tool is missing and when it rejects `--from`
 as an unknown option, and green only for exit 2 with the message. T1 is red when a
-hook skips the tests. A check with no command fails, an unknown task id fails, and
-`T1` alone prints the partial-run line.
+test fails, when a hook skips or deselects tests (also with `addopts = -q` in the
+config, which hides pytest's summary line), when fewer or more than 6 tests pass,
+and when the test file is missing. A check with no command fails, an unknown task
+id fails, and `T1` alone prints the partial-run line.
 
 - `set -uo pipefail` without `-e`: every check runs, so one round shows every failure.
 - Assert the exact exit code and the message, never a bare negation: `! ./mytool
   --from bad` is green when the tool is missing, crashes, or rejects the flag
   because the feature does not exist yet.
 - A skipped test is not a passing one: a `conftest.py` hook can mark every test
-  skipped and pytest still exits 0.
+  skipped, or deselect it, and pytest still exits 0. Count passes from a structured
+  report against the number of acceptance tests you wrote, never from summary text.
 - Never pipe a check call or a command inside one. `check ... | tail` runs `check`
   in a subshell and loses `fail=1`, and a pipe inside `bash -c` does not inherit
   `pipefail`. Shorten output with the tool's own flags instead.

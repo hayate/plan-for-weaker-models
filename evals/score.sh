@@ -28,12 +28,28 @@ g rev-parse -q --verify "$base^{commit}" >/dev/null || { echo "base $base is not
 plans=$(g diff --name-only --diff-filter=A "$base" HEAD -- 'docs/*.md')
 plan=$(printf '%s\n' "$plans" | head -1)
 # Frontmatter only: the block between a first-line --- and the next ---, so an
-# example inside a code fence cannot stand in for a real field.
-frontmatter() { g show "HEAD:$plan" | awk 'NR==1 { if ($0 != "---") exit; next } $0 == "---" { exit } { print }'; }
-# One scalar: drop a trailing comment and surrounding YAML quotes.
+# example inside a code fence cannot stand in for a real field. CRLF-safe.
+frontmatter() {
+  g show "HEAD:$plan" | tr -d '\r' | awk 'NR==1 { if ($0 != "---") exit; next } $0 == "---" { exit } { print }'
+}
+# One scalar field, YAML-style: a quoted value keeps any '#' inside the quotes; an
+# unquoted value ends at ' #'; a value that is only a comment is empty.
 field() {
-  frontmatter | sed -n "s/^$1:[[:space:]]*//p" | head -1 |
-    sed -e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//' -e "s/^[\"']//" -e "s/[\"']\$//"
+  frontmatter | python3 -c '
+import re, sys
+key = sys.argv[1]
+for line in sys.stdin:
+    m = re.match(re.escape(key) + r":[ \t]*(.*)$", line.rstrip("\n"))
+    if not m:
+        continue
+    v = m.group(1)
+    q = re.match(r"""(["\x27])(.*?)\1""", v)
+    if q:
+        print(q.group(2))
+    elif not v.startswith("#"):
+        print(re.split(r"[ \t]+#", v, maxsplit=1)[0].strip())
+    break
+' "$1"
 }
 
 case $scenario in

@@ -7,9 +7,12 @@ fixture copy:
     LEDGER_REPO=/path/to/implemented/repo python -m pytest -q evals/hidden
 
 Only what FEATURE.md fixes is asserted. The --by-month line format is left to the
-plan, so those tests look for the month, account and amount on one line.
+plan, so each output line is parsed into a (month, account) -> amount record, with
+any whitespace, comma, semicolon or pipe as the separator, and the whole mapping is
+compared exactly.
 """
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -37,11 +40,12 @@ def csv_path(tmp_path):
 
 
 def assert_feature_error(r):
-    """Exit 2 with the feature's own message: argparse's usage error for an
-    unknown flag also exits 2 on stderr, and must not count."""
+    """Exit 2 with a message on stderr. argparse rejecting --from as an unknown
+    option also exits 2 on stderr, so that signature must not count; a validation
+    error raised through argparse (parser.error, a type= validator) is fine."""
     assert r.returncode == 2
     assert r.stderr.strip()
-    assert "unrecognized arguments" not in r.stderr and "usage:" not in r.stderr
+    assert "unrecognized arguments" not in r.stderr
     assert r.stdout == ""
 
 
@@ -84,26 +88,44 @@ def test_missing_file_still_exits_2(tmp_path):
     assert "no such file" in r.stderr
 
 
-def _line_with(lines, *tokens):
-    return [line for line in lines if all(t in line for t in tokens)]
+MONTH = re.compile(r"\d{4}-\d{2}")
+AMOUNT = re.compile(r"-?\d+\.\d{2}")
+
+
+def by_month(stdout):
+    """(month, account) -> amount for every output line that names a month."""
+    records = {}
+    for line in stdout.splitlines():
+        tokens = [t for t in re.split(r"[\s,;|]+", line.strip()) if t]
+        months = [t for t in tokens if MONTH.fullmatch(t)]
+        if not months:
+            continue  # a header or blank line
+        amounts = [t for t in tokens if AMOUNT.fullmatch(t)]
+        rest = [t for t in tokens if not MONTH.fullmatch(t) and not AMOUNT.fullmatch(t)]
+        assert len(months) == 1 and len(amounts) == 1 and len(rest) == 1, f"unparseable line: {line!r}"
+        key = (months[0], rest[0])
+        assert key not in records, f"duplicate group: {key}"
+        records[key] = amounts[0]
+    return records
 
 
 def test_by_month_groups_by_month_and_account(csv_path):
     r = ledger("--by-month", csv_path)
     assert r.returncode == 0, r.stderr
-    lines = r.stdout.splitlines()
-    assert _line_with(lines, "2026-02", "food", "5.50")
-    assert _line_with(lines, "2026-02", "rent", "50.00")
-    assert _line_with(lines, "2026-01", "food", "1.00")
-    assert _line_with(lines, "2025-02", "food", "99.00")  # year kept apart
-    assert len(lines) == 5
+    assert by_month(r.stdout) == {
+        ("2025-02", "food"): "99.00",  # same month, other year: kept apart
+        ("2026-01", "food"): "1.00",
+        ("2026-02", "food"): "5.50",
+        ("2026-02", "rent"): "50.00",
+        ("2026-03", "food"): "7.00",
+    }
 
 
 def test_by_month_respects_the_window(csv_path):
     r = ledger("--by-month", "--from", "2026-02-15", "--to", "2026-03-01", csv_path)
     assert r.returncode == 0, r.stderr
-    lines = r.stdout.splitlines()
-    assert _line_with(lines, "2026-02", "food", "3.00")
-    assert _line_with(lines, "2026-02", "rent", "50.00")
-    assert _line_with(lines, "2026-03", "food", "7.00")
-    assert len(lines) == 3
+    assert by_month(r.stdout) == {
+        ("2026-02", "food"): "3.00",
+        ("2026-02", "rent"): "50.00",
+        ("2026-03", "food"): "7.00",
+    }
