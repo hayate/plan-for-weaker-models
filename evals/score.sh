@@ -96,8 +96,17 @@ W)
     tmp=$(mktemp -d)
     g clone -q "$repo" "$tmp/c" 2>/dev/null || git clone -q "$repo" "$tmp/c"
     git -C "$tmp/c" checkout -q "$(g rev-parse HEAD)"
-    (cd "$tmp/c" && timeout 900 bash "$chk" >"$tmp/out" 2>&1); rc=$?
-    [ "$rc" -ne 0 ] && pass "fresh-clone check is red (exit $rc)" || bad "fresh-clone check is green on the unimplemented tree"
+    # timeout is GNU coreutils: absent on a stock Mac, so use it only when present.
+    limit=(); command -v timeout >/dev/null && limit=(timeout 900)
+    # ${limit[@]+...}: an empty array is "unbound" under set -u in bash 3.2 (macOS).
+    (cd "$tmp/c" && ${limit[@]+"${limit[@]}"} bash "$chk" >"$tmp/out" 2>&1); rc=$?
+    if [ "$rc" -ge 124 ] && [ "$rc" -le 127 ]; then
+      bad "check did not run to completion (exit $rc: timed out or not runnable)"
+    elif [ "$rc" -ne 0 ]; then
+      pass "fresh-clone check is red (exit $rc)"
+    else
+      bad "fresh-clone check is green on the unimplemented tree"
+    fi
     grep -qiE 'command not found|no module named .?pytest|not on path|create the venv' "$tmp/out" \
       && bad "red run shows a setup error: $(grep -m1 -iE 'command not found|no module named .?pytest|not on path|create the venv' "$tmp/out")" \
       || pass "no setup error in the red run"
