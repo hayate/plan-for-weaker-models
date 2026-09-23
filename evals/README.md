@@ -125,5 +125,16 @@ exits 0 (24 checks), and the hidden black-box tests pass 11/11. One slip: task T
 had no check by design (the reviewer reads the README), the prompt told the
 implementer to run `check T5` anyway, which exits 2 ("no check matches"), and the
 implementer reported "all checks pass" without mentioning it. The prompt now covers
-tasks without a check. Done was decided by the reviewer's own run, as designed. n = 1:
-this supports the central claim, it does not establish it.
+tasks without a check. Done was decided by the reviewer's own run, as designed.
+
+2026-09-24: after Andrea approved W1's and SD1's plans (relayed, his words quoted),
+Haiku 4.5 implemented both the same way. Stage E is now 3/3:
+
+| Plan | Tasks | First-attempt green | Read-only touched | Fresh-clone check | Hidden tests |
+|---|---|---|---|---|---|
+| W2 | 5 | 4/4 checked tasks (T5 has no check) | no | exit 0, 24 checks | 11/11 |
+| W1 | 6 | 6/6 | no | exit 0, 29 checks | 11/11 |
+| SD1 | 3 | 3/3 | no | exit 0, 10 checks | 11/11 |
+
+Haiku is a stand-in for a local quantized model; how the two compare is not
+measured here. A run with a local model through opencode is the next test.
