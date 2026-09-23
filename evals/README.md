@@ -137,4 +137,10 @@ Haiku 4.5 implemented both the same way. Stage E is now 3/3:
 | SD1 | 3 | 3/3 | no | exit 0, 10 checks | 11/11 |
 
 Haiku is a stand-in for a local quantized model; how the two compare is not
-measured here. A run with a local model through opencode is the next test.
+measured here.
+
+Outside Claude, through a real coding CLI: Andrea ran W2's plan in opencode with
+deepseek-flash (model confirmed from opencode's own log for the run window), one fresh
+session per task, T1-T5, no manual fixes. Each task's check green when handed back,
+no read-only file touched, fresh-clone check exit 0 (24 checks), hidden tests 11/11,
+README correct. Result branch `result/deepseek-flash` in `~/srv/ledger-eval-opencode`.
