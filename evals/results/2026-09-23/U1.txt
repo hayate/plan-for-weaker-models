@@ -1,0 +1,5 @@
+# U1 (scored as U), skill frozen at 91d7671, repo HEAD eb474bc
+PASS: no commits: nothing drafted
+PASS: no uncommitted files
+PASS: reply asks who implements
+score.sh exit=0

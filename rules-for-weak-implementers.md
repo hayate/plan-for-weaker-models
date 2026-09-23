@@ -152,8 +152,10 @@ failures are named. T2 is red when the tool is missing and when it rejects `--fr
 as an unknown option, and green only for exit 2 with the message. T1 is red when a
 test fails, when a hook skips or deselects tests (also with `addopts = -q` in the
 config, which hides pytest's summary line), when fewer or more than 6 tests pass,
-and when the test file is missing. A check with no command fails, an unknown task
-id fails, and `T1` alone prints the partial-run line.
+when the test file is missing, and when production code exits the process on
+import (`sys.exit` or `os._exit`: a collection error, or no report at all). A
+check with no command fails, an unknown task id fails, and `T1` alone prints the
+partial-run line.
 
 - `set -uo pipefail` without `-e`: every check runs, so one round shows every failure.
 - Assert the exact exit code and the message, never a bare negation: `! ./mytool

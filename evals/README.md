@@ -15,7 +15,9 @@ Score what the run left on disk with `score.sh`, never the agent's own report.
    `<SKILL>` (the frozen SKILL.md) and `<SCRATCH>` (the run's scratch root).
 4. W and SD only: when the agent reports the plan ready, send a second turn,
    "Approved.", and save that reply. The skill pins after approval, so the pin is
-   scored after this turn.
+   scored after this turn. The prompt says the orchestrator relays Andrea's
+   approval: without that line, a careful planner rightly refuses to treat an
+   agent's "Approved." as the user's consent (one 2026-09-23 run did).
 5. Save the agent's final reply as text, and score:
    `bash score.sh <U|S|W> <run repo> <base sha> [scratch root] [reply file]`.
    Read every LOOK line. SD is scored with W.
@@ -90,8 +92,10 @@ plus three regression repos: a plan committed on `main`, quoted YAML values, and
 `implementer:` that appears only inside a code fence (must fail).
 
 Skill versions: v0 is d19073e. v1 is 059dadf without its Rule 3 handoff step (added
-after these runs from their own findings). The current split into SKILL.md and
-rules-for-weak-implementers.md has not been run yet.
+after these runs from their own findings). v2 is 91d7671, the split into SKILL.md
+and rules-for-weak-implementers.md, scored with `score.sh`; its sheets are in
+`results/2026-09-23/`. Later commits changed the example check's `all_pass` to a
+junit count, one gate-row sentence, and the prompts, none of it re-run.
 
 | | Control (no skill), 3 runs | v0 | v1 |
 |---|---|---|---|
@@ -104,3 +108,22 @@ rules-for-weak-implementers.md has not been run yet.
 
 The fresh-clone row separates skill from no skill, not v1 from v0: v0 runs already
 built their own environments.
+
+v2 runs (one each unless noted):
+
+| Scenario | Result |
+|---|---|
+| U (2 runs: U.txt, U-noinvite.txt) | 2/2 asked who implements and drafted nothing, including the run whose prompt did not invite questions. |
+| S | Pass: skipped the skill, planned with writing-plans. It still asked the execution-method question, which the gate answer settles; SKILL.md now says so outside the question paragraph. |
+| W (2 runs) | W2: 13/13 after "Approved.". W1: all criteria but the pin: it refused to treat the orchestrator's "Approved." as Andrea's consent (correct), so prompts now say approval is relayed. |
+| SD | All criteria but the pin; not sent "Approved." for the same reason. It applied the rules on the subagent-driven row. |
+
+Stage E on W2's pinned plan, Claude Haiku 4.5 implementing, one fresh session per
+task: all five tasks committed, T1-T4 green on the first attempt, no read-only file
+touched. Review: integrity and scope clean, the no-argument check from a fresh clone
+exits 0 (24 checks), and the hidden black-box tests pass 11/11. One slip: task T5
+had no check by design (the reviewer reads the README), the prompt told the
+implementer to run `check T5` anyway, which exits 2 ("no check matches"), and the
+implementer reported "all checks pass" without mentioning it. The prompt now covers
+tasks without a check. Done was decided by the reviewer's own run, as designed. n = 1:
+this supports the central claim, it does not establish it.

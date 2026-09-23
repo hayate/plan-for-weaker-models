@@ -21,15 +21,18 @@ Settle this before drafting anything.
 |---|---|
 | You, in this session (writing-plans' Native execution) | Stop. This skill does not apply. |
 | Your own model or one at least as strong, in any session; or a human | Stop. These rules target how weaker models fail. |
-| Subagents you dispatch per task (writing-plans' Subagent-driven execution) | Apply, unless every implementer subagent will run on your model. subagent-driven-development picks a cheap model for small, fully specified tasks, which is what this skill produces. |
+| Subagents you dispatch per task (writing-plans' Subagent-driven execution) | Apply, unless every implementer subagent will run on your model. subagent-driven-development picks cheaper models than yours for implementation: a mid-tier floor for tasks specified in prose, the cheapest tier for tasks with complete code. |
 | A weaker model: local, quantized, smaller or cheaper | Apply. |
 | Nothing to implement (research notes, no acceptance surface) | Stop. |
 | Not stated, not decided, or you cannot tell whether it is weaker | Ask the user now, then wait. |
 
 The question, in one message: "Who will implement this plan: me in this session,
 subagents I dispatch per task (they may run on cheaper models), or another model?
-If another model, which one, at what quantization and context size?" The answer
-also settles writing-plans' execution method, so do not ask it again at the end.
+If another model, which one, at what quantization and context size?"
+
+However the implementer became known, stated in the request or answered here, it
+also settles writing-plans' execution method: do not ask that question again at
+the end, whether or not this skill applies.
 
 Ask before drafting. Do not draft the plan and ask at the end, and do not assume a
 weak implementer to be safe: a weak-model plan costs far more to write, and for a
