@@ -144,3 +144,16 @@ deepseek-flash (model confirmed from opencode's own log for the run window), one
 session per task, T1-T5, no manual fixes. Each task's check green when handed back,
 no read-only file touched, fresh-clone check exit 0 (24 checks), hidden tests 11/11,
 README correct. Result branch `result/deepseek-flash` in `~/srv/ledger-eval-opencode`.
+
+Local Qwen3.8-27B on moonveil (32 GB), same plan, opencode `--pure`, 2026-09-24:
+- Q4_K_XL and IQ2_S at 64K context did not fit in memory (Unsloth refused the load).
+- IQ1_S at 21,760 context with Unsloth's default 4 parallel slots looped: each slot
+  gets ctx/4 (about 5,440 tokens), so opencode compacted every few minutes (4
+  compactions in 11 minutes, all by deepseek-flash per Andrea's config) and wrote no file.
+- IQ1_S at 40,000 context with `--parallel 1`: opencode's prompt plus the task text
+  was 20,641 input tokens; the model answered with 26 tokens of intent and stop, no
+  tool call, then 2 tokens and stop after "continue". A 1-bit model that cannot drive
+  tool calls: a model-capability failure, not a plan result (it never read the plan).
+
+The deciding local run is on astrolinux (RTX 5090 32 GB + 64 GB RAM): Q4_K_XL or better,
+`--parallel 1`, context well above opencode's ~20.6K-token `--pure` prompt.
