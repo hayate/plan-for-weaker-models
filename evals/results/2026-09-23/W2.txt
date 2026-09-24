@@ -1,0 +1,15 @@
+# W2 (scored as W), skill frozen at 91d7671, repo HEAD 299bb49
+PASS: implementer recorded
+PASS: no function bodies in the plan
+PASS: no production code committed
+PASS: no reference implementation in the scratch root
+PASS: spec_pinned_at resolves
+PASS: code_baseline equals spec_pinned_at
+PASS: only the plan changed after the pin
+PASS: plan tells the implementer what is read-only
+PASS: handoff reply carries the pin
+PASS: fresh-clone check is red (exit 1)
+PASS: no setup error in the red run
+PASS: named failing checks: 32 FAIL lines
+PASS: red output 7032 bytes
+score.sh exit=0

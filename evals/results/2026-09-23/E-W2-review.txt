@@ -1,0 +1,25 @@
+== commits since handoff
+0b64af0 T5: document the new flags
+f7fd3d7 T4: add --from, --to and --by-month to the CLI
+5d61580 T3: add totals_by_month and render_by_month
+22057ef T2: add filter_window
+402515a T1: add strict parse_day
+== dirty files: 0
+== 1 integrity (check files vs checks_at)
+   unchanged
+== 2 scope (files changed since code_baseline)
+   ok   README.md
+   ok   docs/plans/2026-09-23-date-window-by-month.md
+   ok   ledger/cli.py
+   ok   ledger/dates.py
+   ok   ledger/report.py
+   plan diff since pin (should be pin lines only):
+     -spec_pinned_at: pending                                   # plan repo HEAD at approval
+     -code_baseline: pending                                    # same repo: = spec_pinned_at
+     +spec_pinned_at: 3ca97a84b963c3966e819cd115c7c30f77a8da6b  # plan repo HEAD at approval
+     +code_baseline: 3ca97a84b963c3966e819cd115c7c30f77a8da6b   # same repo: = spec_pinned_at
+== 3 the run: fresh clone of HEAD, no arguments
+   exit=0   checks run: 24   FAIL lines: 0
+== hidden black-box tests on the fresh clone
+...........                                                              [100%]
+11 passed in 0.89s

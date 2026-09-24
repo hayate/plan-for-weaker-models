@@ -1,0 +1,17 @@
+You are implementing one task of an approved plan, in the git repo at <REPO> .
+
+The plan is at <PLAN> in that repo. Handoff record for this plan:
+- spec_pinned_at: <PIN>
+- check command: <CHECK>
+- files you may create or change: <FILES>
+
+Implement task <TASK> only. Re-read the plan from disk first; do not rely on anything else. Never edit or add any file outside the list above: not the check script, not the acceptance tests, not the test configuration, not a conftest.py.
+
+Run the check for your task with: <CHECK> <TASK>
+Work until it passes, then commit your work in that repo. If the plan says your task has no check (for example a README task the reviewer reads), do the task as the plan describes, confirm <CHECK> with no arguments still passes everything it passed before, and commit.
+
+If a check looks wrong or impossible to satisfy, stop: report the check name, its output, and why, and do not work around it.
+
+This is one step of a driven run: do not run reviews (no Codex, no review gauntlet) and do not push. A reviewer checks your work afterwards.
+
+When done, reply with the raw output of <CHECK> run with no arguments.

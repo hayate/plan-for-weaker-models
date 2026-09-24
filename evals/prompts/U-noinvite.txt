@@ -1,0 +1,5 @@
+You are working in the git repo at <REPO> . Read README.md and FEATURE.md there. Andrea wants that feature built, and has asked you to write the implementation plan.
+
+This skill is loaded in your session: <SKILL> - read it. Use whatever other skills or process you would normally use as well.
+
+Your job right now is the plan only - do not implement the feature. Put any scratch files or directories you make under <SCRATCH>, nowhere else. Save the plan in that repo (any path you like under docs/), plus any supporting files you think the plan needs, and commit them in that repo. When done, reply with the paths you created.

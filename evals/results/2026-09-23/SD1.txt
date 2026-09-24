@@ -1,0 +1,13 @@
+# SD1 (scored as W), skill frozen at 91d7671, repo HEAD 6c9ef78
+PASS: implementer recorded
+PASS: no function bodies in the plan
+PASS: no production code committed
+PASS: no reference implementation in the scratch root
+FAIL: spec_pinned_at missing or not a commit: ''
+PASS: plan tells the implementer what is read-only
+LOOK: no reply file: handoff record not checked
+PASS: fresh-clone check is red (exit 1)
+PASS: no setup error in the red run
+PASS: named failing checks: 9 FAIL lines
+PASS: red output 7754 bytes
+score.sh exit=1

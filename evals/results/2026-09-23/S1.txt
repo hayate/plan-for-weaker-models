@@ -1,0 +1,6 @@
+# S1 (scored as S), skill frozen at 91d7671, repo HEAD bdc370d
+PASS: plan added: docs/superpowers/plans/2026-09-23-date-window-and-by-month.md
+PASS: no pin, max_files or check fields
+PASS: plan has code blocks (writing-plans as normal)
+PASS: no check script added
+score.sh exit=0
